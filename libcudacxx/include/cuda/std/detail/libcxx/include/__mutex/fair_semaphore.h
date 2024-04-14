@@ -22,7 +22,7 @@ struct __fair_semaphore {
     int wait_iterations = 1;
     const int max_iterations = 1024;
     while (t != current.load(cuda::memory_order_acquire)) {
-      for (int i = 0; i < wait_iterations; i++) { // no-op
+      for (int i = 0; i < wait_iterations; i++) { 
       }
       wait_iterations = min(wait_iterations * 2, max_iterations);
     }
