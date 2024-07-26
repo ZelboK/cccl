@@ -191,6 +191,7 @@ public:
 
 #ifndef _LIBCUDACXX_USE_NATIVE_SEMAPHORES
 
+// PAY ATTENTION !!!!!!!!!!!! 
 template <thread_scope _Sco>
 class __atomic_semaphore_base<_Sco, 1>
 {
