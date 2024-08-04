@@ -12,7 +12,7 @@
 #define _LIBCUDACXX___CUDA_SEMAPHORE_H
 
 #include <cuda/std/detail/__config>
-
+#include <cuda/atomic>
 #if defined(_CCCL_IMPLICIT_SYSTEM_HEADER_GCC)
 #  pragma GCC system_header
 #elif defined(_CCCL_IMPLICIT_SYSTEM_HEADER_CLANG)
@@ -23,23 +23,29 @@
 
 _LIBCUDACXX_BEGIN_NAMESPACE_CUDA
 
-template <thread_scope _Sco, ptrdiff_t __least_max_value = INT_MAX>
-class counting_semaphore : public _CUDA_VSTD::__semaphore_base<__least_max_value, _Sco>
-{
-  static_assert(__least_max_value <= _CUDA_VSTD::__semaphore_base<__least_max_value, _Sco>::max(), "");
+template <thread_scope _Sco, ptrdiff_t __least_max_value = INT_MAX> 
+class fair_semaphore {
+  cuda::atomic<unsigned int, _Sco> tickets{0};
+  cuda::atomic<unsigned int, _Sco> current{0};
 
-public:
-  _LIBCUDACXX_INLINE_VISIBILITY constexpr counting_semaphore(ptrdiff_t __count = 0)
-      : _CUDA_VSTD::__semaphore_base<__least_max_value, _Sco>(__count)
-  {}
-  ~counting_semaphore() = default;
-
-  counting_semaphore(const counting_semaphore&)            = delete;
-  counting_semaphore& operator=(const counting_semaphore&) = delete;
+  _CCCL_HOST_DEVICE void lock() {
+    auto t = tickets.fetch_add(1, cuda::memory_order_relaxed);
+    int wait_iterations = 1;
+    const int max_iterations = 1024; 
+    while (t != current.load(cuda::memory_order_acquire)) {
+      for (int i = 0; i < wait_iterations; ++i) { // no-op 
+      // will compiler optimize this out? 
+      }
+      
+      wait_iterations = (wait_iterations * 2 >= max_iterations) ? max_iterations : wait_iterations * 2;
+    }
+  }
+  _CCCL_HOST_DEVICE void unlock() { current.fetch_add(1, cuda::memory_order_release); }
 };
 
+
 template <thread_scope _Sco>
-using binary_semaphore = counting_semaphore<_Sco, 1>;
+using binary_semaphore = fair_semaphore<_Sco, 1>;
 
 _LIBCUDACXX_END_NAMESPACE_CUDA
 
